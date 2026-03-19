@@ -112,7 +112,12 @@ class ParamsExtractor:
             for k, v in self._prompt.items()
             if v["class_type"] in self.config["ksamplers"]
         ]
-        return sorted(ksamplers, key=lambda x: int(x[0]))
+        def _sort_key(x):
+            try:
+                return int(x[0])
+            except ValueError:
+                return int(x[0].split(":")[0])
+        return sorted(ksamplers, key=_sort_key)
 
 
     # ######################
