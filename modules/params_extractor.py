@@ -182,9 +182,8 @@ class ParamsExtractor:
 
     # ######################
     # PngInfoやEagleメモ用のテキストに整形
-    def format_info(self, memo:str):
-        formatted_str = self.config["output_format"].format(**self.gen_info, memo=memo)
-        return formatted_str
+    def format_info(self):
+        return self.config["output_format"].format(**self.gen_info)
 
     # def extract_and_format(self):
     #     """Extract and format the required information from the loaded JSON data."""

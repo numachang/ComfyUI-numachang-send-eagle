@@ -98,10 +98,21 @@ class util:
         ):
             return []
 
-        cleaned_string = re.sub(r":\d+\.\d+", "", prompt_text)
-        items = cleaned_string.split(",")
-        return [
-            re.sub(r"[\(\)]", "", item).strip()
-            for item in items
-            if re.sub(r"[\(\)]", "", item).strip()
-        ]
+        # 行頭が // の行を除外(TagClassifier のカテゴリ見出し対策)
+        lines = [line for line in prompt_text.splitlines() if not line.lstrip().startswith("//")]
+        text = "\n".join(lines)
+
+        # インラインコメント( //... )を除去(カンマまたは改行まで)
+        text = re.sub(r"\s*//[^,\n]*", "", text)
+
+        # 重み記法 :1.2 / :1 を除去
+        text = re.sub(r":\d+(?:\.\d+)?", "", text)
+
+        tags = []
+        for item in text.split(","):
+            tag = re.sub(r"[\(\)]", "", item).strip()
+            # 先頭の # を除去 (#black_shirt → black_shirt)
+            tag = tag.lstrip("#").strip()
+            if tag:
+                tags.append(tag)
+        return tags

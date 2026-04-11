@@ -1,7 +1,6 @@
 import json
 import os
 import numpy as np
-import json
 from typing import Dict, Optional, Literal
 
 from PIL import Image
@@ -79,11 +78,6 @@ class D2_SendEagle:
                     "STRING",
                     {"forceInput": True, "multiline": True},
                 ),
-                # その他メモ
-                "memo_text": (
-                    "STRING",
-                    {"multiline": True},
-                ),
                 "d2_pipe": ("D2_TD2Pipe",),
             },
             "hidden": {"prompt": "PROMPT", "extra_pnginfo": "EXTRA_PNGINFO"},
@@ -97,7 +91,7 @@ class D2_SendEagle:
 
     # ######################
     # ノード実行で呼ばれる関数
-    # Eagleに画像を送る
+    # Eagleに画像を送る (バッチ時は1リクエストにまとめる)
     def add_item(
         self,
         images,
@@ -110,14 +104,10 @@ class D2_SendEagle:
         positive = "",
         negative = "",
         preview = True,
-        memo_text = "",
         d2_pipe: Optional[D2_TD2Pipe] = None,
         prompt: Optional[Dict] = None,
         extra_pnginfo: Optional[Dict] = None,
     ):
-        self.output_folder, self.subfolder_name = self.get_output_folder()
-
-        results = list()
         params = TNodeParams(
             format = format,
             lossless_webp = lossless_webp,
@@ -127,17 +117,28 @@ class D2_SendEagle:
             compression = compression,
             positive = self.__class__.get_prompt_value("positive", positive, d2_pipe),
             negative = self.__class__.get_prompt_value("negative", negative, d2_pipe),
-            memo_text = memo_text,
             prompt = prompt,
             extra_pnginfo = extra_pnginfo,
         )
 
-        for image in images:
-          results.append(self.create_image_object(image, params, d2_pipe))
+        self.output_folder, self.subfolder_name = self.get_output_folder()
 
-        if(preview):
+        # Eagle フォルダを1回だけ取得
+        folder_id = self.eagle_api.find_or_create_folder(params["eagle_folder"])
+
+        preview_results = []
+
+        for image in images:
+            item, preview_info = self.create_image_object(image, params, d2_pipe)
+            preview_results.append(preview_info)
+
+            ids = self.eagle_api.add_items([item], folder_id=folder_id)
+            if not ids:
+                raise RuntimeError("[SendEagle] add_items returned no item id")
+
+        if preview:
             return {
-                "ui": {"images": results},
+                "ui": {"images": preview_results},
                 "result": (params["positive"], params["negative"], images,)
             }
 
@@ -154,43 +155,38 @@ class D2_SendEagle:
         return ""
 
     # ######################
-    # イメージオブジェクトを作成
-    def create_image_object(self, image, params:TNodeParams, d2_pipe:D2_TD2Pipe | None) -> dict:
+    # イメージ1枚ぶんの送信データを作成
+    # 返り値: (eagle_item, preview_info)
+    def create_image_object(
+        self,
+        image,
+        params: TNodeParams,
+        d2_pipe: Optional[D2_TD2Pipe],
+    ):
         normalized_pixels = 255.0 * image.cpu().numpy()
         img = Image.fromarray(np.clip(normalized_pixels, 0, 255).astype(np.uint8))
 
         # 生成パラメータ整理
         paramsExtractor = self.create_generate_params(img, params, d2_pipe)
-        # 必要な生成パラメーターをまとめたもの
         gen_info = paramsExtractor.gen_info
-        # EagleやPNGInfo用に整形したもの
-        formated_info = paramsExtractor.format_info(params["memo_text"])
+        formated_info = paramsExtractor.format_info()
 
-        # print("generate_params", gen_info)
-        # print("format_info", formated_info)
+        tags = self.get_tags(params, gen_info)
 
-        # 画像をローカルに保存
+        # ローカル保存してパスで送信
         file_name, file_full_path = self.save_image(img, params, gen_info, formated_info)
-
-        # Eagleフォルダが指定されているならフォルダIDを取得
-        folder_id = self.eagle_api.find_or_create_folder(params["eagle_folder"])
-
-        # Eagleに送る情報を作成
         item = {
             "path": file_full_path,
             "name": file_name,
             "annotation": formated_info,
-            "tags": [],
+            "tags": tags,
         }
-
-        # タグを取得
-        item["tags"] = self.get_tags(params, gen_info)
-
-        _ret = self.eagle_api.add_item_from_path(data=item, folder_id=folder_id)
-
-        return {
-            "filename": file_name, "subfolder": self.subfolder_name, "type": self.type
+        preview_info = {
+            "filename": file_name,
+            "subfolder": self.subfolder_name,
+            "type": self.type,
         }
+        return item, preview_info
 
     # ######################
     # 登録タグを取得
