@@ -48,12 +48,32 @@ ComfyUIで生成した画像を画像管理ソフト [Eagle](https://en.eagle.co
 下記の KSampler系に対応しています。
 `config.yaml` を編集すると自分で増やすことができます。
 
+- D2 KSampler
 - KSampler
 - KSamplerAdvanced
 - KSampler With Refiner (Fooocus)
 - BNK_TiledKSampler
 - KSampler (Efficient)
 - GenerateNAID
+
+
+### Eagle の annotation フォーマット
+
+生成パラメータは Eagle のサイドバーに表示される annotation フィールドに以下の形式で記録されます。
+A1111 PNG Info 互換のまま、positive / negative / パラメータのセクションを空行 2 つで明確に区切っています。
+
+```
+{positive}
+
+
+Negative prompt:
+{negative}
+
+
+Steps: ..., Sampler: ..., CFG scale: ..., Seed: ..., Size: ..., Model: ...
+```
+
+この形式のため、Eagle 上で **positive 部分だけを選択してコピー** しやすくなっています。
 
 
 ### png形式と webp形式の違い
@@ -64,6 +84,13 @@ ComfyUIで生成した画像を画像管理ソフト [Eagle](https://en.eagle.co
 - webp形式
   - ComfyUIワークフローを**保存できない**
   - StableDiffusion webui A1111 の PNGInfoには**表示できる**
+
+---
+
+## 必要環境
+
+- **Eagle 4.0 Build 21 以上** (Web API v2 を使用)
+- Python >= 3.9
 
 ---
 
@@ -113,6 +140,8 @@ ComfyUIで生成した画像を画像管理ソフト [Eagle](https://en.eagle.co
   - 使用可能なパラメーター: `width`、`height`、`model_name`、`steps`、`seed`
 - `eagle_folder`
   - Eagleのフォルダ名、またはフォルダIDを指定。フォルダが存在しなければ新規作成する
+- `preview`
+  - ON にするとノードにプレビュー画像を表示する (OFF で非表示)
 
 ---
 
@@ -130,6 +159,16 @@ Eagleに送信する他に、ローカル環境の下記フォルダにも画像
 
 ## 変更履歴
 
+- 2026/04/11
+  - Eagle Web API v2 (Eagle 4.0 Build 21+) に対応
+    - `/api/v2/item/add` `/api/v2/folder/get` `/api/v2/folder/create` を使用
+  - TagClassifier 経由のプロンプトで `//` コメントや `#` プレフィックスが
+    Eagle タグに混入していた問題を修正 (`util.get_prompt_tags` 改修)
+  - annotation フォーマットをセクション明示型に刷新 (A1111 PNG Info 互換維持)
+    - positive / negative / パラメータを空行 2 つで明確に区切る
+  - `memo_text` 入力を廃止 (A1111 の最終行制約と衝突するため)
+  - `scripts/clean_eagle_tags.py` と `scripts/merge_polluted_tags.py` を追加
+    (既存画像のタグ汚染クリーンアップ用ユーティリティ)
 - 2024/12/28
   - d2-node-comfyui の d2_pipe に対応
 - 2024/11/13

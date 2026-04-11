@@ -49,12 +49,33 @@ Please also try [D2 Nodes ComfyUI](https://github.com/da2el-ai/d2-nodes-ComfyUI/
 The following KSampler types are supported.
 You can add more by editing `config.yaml`.
 
+- D2 KSampler
 - KSampler
 - KSamplerAdvanced
 - KSampler With Refiner (Fooocus)
 - BNK_TiledKSampler
 - KSampler (Efficient)
 - GenerateNAID
+
+
+### Eagle annotation format
+
+Generation parameters are recorded in Eagle's annotation field (shown in the sidebar)
+using the format below. It's A1111 PNG Info compatible while clearly separating
+positive / negative / params sections with two blank lines.
+
+```
+{positive}
+
+
+Negative prompt:
+{negative}
+
+
+Steps: ..., Sampler: ..., CFG scale: ..., Seed: ..., Size: ..., Model: ...
+```
+
+This makes it easy to **select and copy just the positive portion** in Eagle's UI.
 
 
 ### Differences Between png and webp Formats
@@ -65,6 +86,13 @@ You can add more by editing `config.yaml`.
 - webp format
   - **Cannot save** ComfyUI workflows
   - **Can display** in StableDiffusion webui A1111's PNGInfo
+
+---
+
+## Requirements
+
+- **Eagle 4.0 Build 21 or later** (uses Web API v2)
+- Python >= 3.9
 
 ---
 
@@ -114,6 +142,8 @@ You can add more by editing `config.yaml`.
   - Available parameters: `width`, `height`, `model_name`, `steps`, `seed`
 - `eagle_folder`
   - Specify Eagle folder name or folder ID. Creates new folder if it doesn't exist
+- `preview`
+  - When ON, shows preview images on the node (OFF to hide)
 
 ---
 
@@ -131,6 +161,16 @@ This folder name cannot be changed.
 
 ## Change Log
 
+- 2026/04/11
+  - Migrated to Eagle Web API v2 (requires Eagle 4.0 Build 21+)
+    - Uses `/api/v2/item/add`, `/api/v2/folder/get`, `/api/v2/folder/create`
+  - Fixed `util.get_prompt_tags` so `//` comments and `#` prefixes from
+    TagClassifier-style inputs no longer pollute Eagle tags
+  - Reformatted annotation with clear section separators (A1111 PNG Info
+    compatible) — positive / negative / params are separated by two blank lines
+  - Removed `memo_text` input (conflicted with A1111's last-line params constraint)
+  - Added `scripts/clean_eagle_tags.py` and `scripts/merge_polluted_tags.py`
+    utility scripts to clean up tag pollution in existing images
 - 2024/12/28
   - Added support for d2_pipe in d2-node-comfyui
 - 2024/11/13
